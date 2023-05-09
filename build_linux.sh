@@ -6,7 +6,7 @@ if [ "$(uname)" == "Darwin" ]; then
 	export GOOS="${GOOS:-linux}"
 fi
 
-export GOFLAGS="${GOFLAGS} -mod=vendor"
+export GOFLAGS="${GOFLAGS} -mod=vendor -buildvcs=false"
 
 mkdir -p "${PWD}/bin"
 
@@ -21,3 +21,5 @@ for d in $PLUGINS; do
 		fi
 	fi
 done
+
+tar -cvzf plugins.tgz -C ./bin/ vxlan

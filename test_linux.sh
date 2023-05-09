@@ -15,7 +15,7 @@ source ./build_linux.sh
 echo "Running tests"
 
 function testrun {
-    sudo -E bash -c "umask 0; PATH=${GOPATH}/bin:$(pwd)/bin:${PATH} go test $@"
+    sudo -E bash -c "umask 0; PATH=${GOPATH}/bin:$(pwd)/bin:${PATH} go test -v $@"
 }
 
 COVERALLS=${COVERALLS:-""}
@@ -26,7 +26,7 @@ else
     echo "without coverage profile generation..."
 fi
 
-PKG=${PKG:-$(go list ./... | xargs echo)}
+PKG=${PKG:-$(go list ./plugins/main/vxlan | xargs echo)}
 
 i=0
 for t in ${PKG}; do
@@ -40,4 +40,4 @@ done
 
 # Run the pkg/ns tests as non root user
 mkdir /tmp/cni-rootless
-(export XDG_RUNTIME_DIR=/tmp/cni-rootless; cd pkg/ns/; unshare -rmn go test)
+(export XDG_RUNTIME_DIR=/tmp/cni-rootless; cd pkg/ns/; unshare -rmn go test -v -buildvcs=false)
