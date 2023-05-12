@@ -123,7 +123,40 @@ func cmdAdd(args *skel.CmdArgs) error {
 }
 
 func cmdDel(args *skel.CmdArgs) error {
-	return nil
+	n, _, err := loadConf(args)
+	if err != nil {
+		return err
+	}
+
+	err = ipam.ExecDel(n.IPAM.Type, args.StdinData)
+	if err != nil {
+		return err
+	}
+
+	if args.Netns == "" {
+		return nil
+	}
+
+	err = ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
+		err = ip.DelLinkByName(args.IfName)
+		if err != nil && err == ip.ErrLinkNotFound {
+			return nil
+		}
+		return err
+	})
+
+	if err != nil {
+		//  if NetNs is passed down by the Cloud Orchestration Engine, or if it called multiple times
+		// so don't return an error if the device is already removed.
+		// https://github.com/kubernetes/kubernetes/issues/43014#issuecomment-287164444
+		_, ok := err.(ns.NSPathNotExistErr)
+		if ok {
+			return nil
+		}
+		return err
+	}
+
+	return err
 }
 
 func cmdCheck(args *skel.CmdArgs) error {

@@ -237,5 +237,39 @@ var _ = Describe("vxlan Operations", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
+		err = originalNS.Do(func(ns.NetNS) error {
+			defer GinkgoRecover()
+
+			err = testutils.CmdDelWithArgs(args, func() error {
+				return cmdDel(args)
+			})
+			Expect(err).NotTo(HaveOccurred())
+			return nil
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		// Make sure vlan link has been deleted
+		err = targetNS.Do(func(ns.NetNS) error {
+			defer GinkgoRecover()
+
+			link, err := netlink.LinkByName(IFNAME)
+			Expect(err).To(HaveOccurred())
+			Expect(link).To(BeNil())
+			return nil
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		// DEL can be called multiple times, make sure no error is returned
+		// if the device is already removed.
+		err = originalNS.Do(func(ns.NetNS) error {
+			defer GinkgoRecover()
+
+			err = testutils.CmdDelWithArgs(args, func() error {
+				return cmdDel(args)
+			})
+			Expect(err).NotTo(HaveOccurred())
+			return nil
+		})
+		Expect(err).NotTo(HaveOccurred())
 	})
 })

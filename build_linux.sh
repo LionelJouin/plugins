@@ -22,4 +22,4 @@ for d in $PLUGINS; do
 	fi
 done
 
-tar -cvzf plugins.tgz -C ./bin/ vxlan
+tar -cvzf plugins.tgz -C ./bin/ vxlan loopback-vip
