@@ -31,7 +31,13 @@ import (
 
 type NetConf struct {
 	types.NetConf
-	Vip string `json:"vip"`
+	Gateways     []string      `json:"gateways"`
+	TableId      int           `json:"tableId"`
+	PolicyRoutes []PolicyRoute `json:"policyRoutes"`
+}
+
+type PolicyRoute struct {
+	SrcPrefix string `json:"src-prefix"`
 }
 
 func init() {
@@ -47,24 +53,59 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return err
 	}
 
-	args.IfName = "lo" // ignore config, this only works for loopback
-
 	netns, err := ns.GetNS(args.Netns)
 	if err != nil {
 		return fmt.Errorf("failed to open netns %q: %v", args.Netns, err)
 	}
 	defer netns.Close()
 
-	_, vip, _ := net.ParseCIDR(n.Vip)
-	netns.Do(func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName(args.IfName)
-		if err != nil {
-			return fmt.Errorf("failed to lookup %q: %v", args.IfName, err)
-		}
+	nexthopsV4, nexthopsV6 := getNextHops(n.Gateways)
 
-		addr := &netlink.Addr{IPNet: vip, Label: ""}
-		if err = netlink.AddrAdd(link, addr); err != nil {
-			return fmt.Errorf("failed to add IP addr %v to %q: %v", vip, args.IfName, err)
+	netns.Do(func(_ ns.NetNS) error {
+		err = flushRoutingPolicies(n.TableId)
+		if err != nil {
+			return err
+		}
+		err = flushRoutingTables(n.TableId)
+		if err != nil {
+			return err
+		}
+		routeV4 := &netlink.Route{
+			Table:     n.TableId,
+			MultiPath: nexthopsV4,
+		}
+		routeV6 := &netlink.Route{
+			Table:     n.TableId,
+			MultiPath: nexthopsV6,
+		}
+		err := netlink.RouteAdd(routeV4)
+		if err != nil {
+			return err
+		}
+		err = netlink.RouteAdd(routeV6)
+		if err != nil {
+			return err
+		}
+		for _, policyRoute := range n.PolicyRoutes {
+			_, SrcPrefix, err := net.ParseCIDR(policyRoute.SrcPrefix)
+			if err != nil {
+				continue
+			}
+			rule := netlink.NewRule()
+			rule.Table = n.TableId
+			rule.Src = &net.IPNet{
+				IP:   SrcPrefix.IP,
+				Mask: SrcPrefix.Mask,
+			}
+			if SrcPrefix.IP.To4() == nil {
+				rule.Family = netlink.FAMILY_V6
+			} else {
+				rule.Family = netlink.FAMILY_V4
+			}
+			err = netlink.RuleAdd(rule)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	})
@@ -89,26 +130,18 @@ func cmdDel(args *skel.CmdArgs) error {
 		return err
 	}
 
-	args.IfName = "lo" // ignore config, this only works for loopback
-
 	netns, err := ns.GetNS(args.Netns)
 	if err != nil {
 		return fmt.Errorf("failed to open netns %q: %v", args.Netns, err)
 	}
 	defer netns.Close()
 
-	_, vip, _ := net.ParseCIDR(n.Vip)
 	return netns.Do(func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName(args.IfName)
+		err = flushRoutingPolicies(n.TableId)
 		if err != nil {
-			return fmt.Errorf("failed to lookup %q: %v", args.IfName, err)
+			return err
 		}
-
-		addr := &netlink.Addr{IPNet: vip, Label: ""}
-		if err = netlink.AddrDel(link, addr); err != nil {
-			return fmt.Errorf("failed to add IP addr %v to %q: %v", vip, args.IfName, err)
-		}
-		return nil
+		return flushRoutingTables(n.TableId)
 	})
 }
 
@@ -117,7 +150,7 @@ func cmdCheck(args *skel.CmdArgs) error {
 }
 
 func main() {
-	skel.PluginMain(cmdAdd, cmdCheck, cmdDel, version.All, bv.BuildString("loopback-vip"))
+	skel.PluginMain(cmdAdd, cmdCheck, cmdDel, version.All, bv.BuildString("policy-route"))
 }
 
 func loadConf(args *skel.CmdArgs) (*NetConf, string, error) {
@@ -125,8 +158,58 @@ func loadConf(args *skel.CmdArgs) (*NetConf, string, error) {
 	if err := json.Unmarshal(args.StdinData, conf); err != nil {
 		return conf, "", fmt.Errorf("failed to load netconf: %v", err)
 	}
-	if _, _, err := net.ParseCIDR(conf.Vip); err != nil {
-		return conf, "", fmt.Errorf("wrong vip address format %q: %v", conf.Vip, err)
-	}
 	return conf, conf.CNIVersion, nil
+}
+
+func getNextHops(gateways []string) ([]*netlink.NexthopInfo, []*netlink.NexthopInfo) {
+	nexthopsV4 := []*netlink.NexthopInfo{}
+	nexthopsV6 := []*netlink.NexthopInfo{}
+	for _, gateway := range gateways {
+		nexthop := net.ParseIP(gateway)
+		if len(nexthop) == 0 {
+			continue
+		}
+		if nexthop.To4() == nil {
+			nexthopsV6 = append(nexthopsV6, &netlink.NexthopInfo{
+				Gw: nexthop,
+			})
+			continue
+		}
+		nexthopsV4 = append(nexthopsV4, &netlink.NexthopInfo{
+			Gw: nexthop,
+		})
+	}
+	return nexthopsV4, nexthopsV6
+}
+
+func flushRoutingPolicies(tableId int) error {
+	rules, err := netlink.RuleListFiltered(netlink.FAMILY_ALL, &netlink.Rule{
+		Table: tableId,
+	}, netlink.RT_FILTER_TABLE)
+	if err != nil {
+		return err
+	}
+	for _, rule := range rules {
+		err = netlink.RuleDel(&rule)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func flushRoutingTables(tableId int) error {
+	routes, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, &netlink.Route{
+		Table: tableId,
+	}, netlink.RT_FILTER_TABLE)
+	if err != nil {
+		return err
+	}
+	for _, route := range routes {
+		err = netlink.RouteDel(&route)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
