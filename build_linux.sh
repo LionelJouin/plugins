@@ -22,4 +22,4 @@ for d in $PLUGINS; do
 	fi
 done
 
-tar -cvzf plugins.tgz -C ./bin/ vxlan loopback-vip
+tar -cvzf plugins.tgz -C ./bin/ vxlan loopback-vip vlan source-port-nat policy-route
