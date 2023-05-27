@@ -56,7 +56,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 	defer netns.Close()
 
 	_, vip, _ := net.ParseCIDR(n.Vip)
-	netns.Do(func(_ ns.NetNS) error {
+	err = netns.Do(func(_ ns.NetNS) error {
 		link, err := netlink.LinkByName(args.IfName)
 		if err != nil {
 			return fmt.Errorf("failed to lookup %q: %v", args.IfName, err)
@@ -68,6 +68,9 @@ func cmdAdd(args *skel.CmdArgs) error {
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
 
 	result := &current.Result{
 		CNIVersion: n.CNIVersion,

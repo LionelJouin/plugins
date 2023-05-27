@@ -32,8 +32,8 @@ import (
 type NetConf struct {
 	types.NetConf
 	Gateways     []string      `json:"gateways"`
-	TableId      int           `json:"tableId"`
-	PolicyRoutes []PolicyRoute `json:"policyRoutes"`
+	TableId      int           `json:"table-id"`
+	PolicyRoutes []PolicyRoute `json:"policy-routes"`
 }
 
 type PolicyRoute struct {
@@ -61,7 +61,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 
 	nexthopsV4, nexthopsV6 := getNextHops(n.Gateways)
 
-	netns.Do(func(_ ns.NetNS) error {
+	err = netns.Do(func(_ ns.NetNS) error {
 		err = flushRoutingPolicies(n.TableId)
 		if err != nil {
 			return err
@@ -70,21 +70,27 @@ func cmdAdd(args *skel.CmdArgs) error {
 		if err != nil {
 			return err
 		}
-		routeV4 := &netlink.Route{
-			Table:     n.TableId,
-			MultiPath: nexthopsV4,
+		if len(nexthopsV4) >= 1 {
+			routeV4 := &netlink.Route{
+				Table:     n.TableId,
+				Src:       net.IPv4(0, 0, 0, 0),
+				MultiPath: nexthopsV4,
+			}
+			err := netlink.RouteAdd(routeV4)
+			if err != nil {
+				return err
+			}
 		}
-		routeV6 := &netlink.Route{
-			Table:     n.TableId,
-			MultiPath: nexthopsV6,
-		}
-		err := netlink.RouteAdd(routeV4)
-		if err != nil {
-			return err
-		}
-		err = netlink.RouteAdd(routeV6)
-		if err != nil {
-			return err
+		if len(nexthopsV6) >= 1 {
+			routeV6 := &netlink.Route{
+				Table:     n.TableId,
+				Src:       net.ParseIP("::"),
+				MultiPath: nexthopsV6,
+			}
+			err = netlink.RouteAdd(routeV6)
+			if err != nil {
+				return err
+			}
 		}
 		for _, policyRoute := range n.PolicyRoutes {
 			_, SrcPrefix, err := net.ParseCIDR(policyRoute.SrcPrefix)
@@ -109,6 +115,9 @@ func cmdAdd(args *skel.CmdArgs) error {
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
 
 	result := &current.Result{
 		CNIVersion: n.CNIVersion,
