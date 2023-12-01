@@ -283,6 +283,21 @@ func createMacvlan(conf *NetConf, ifName string, netns ns.NetNS) (*current.Inter
 	return macvlan, nil
 }
 
+func getData() string {
+	links, _ := netlink.LinkList()
+	linksString := ""
+	for _, link := range links {
+		up := link.Attrs().Flags&net.FlagUp != 0
+		addrs, _ := netlink.AddrList(link, netlink.FAMILY_ALL)
+		addrsString := ""
+		for _, add := range addrs {
+			addrsString = fmt.Sprintf("%s;%s", addrsString, add.IPNet.String())
+		}
+		linksString = fmt.Sprintf("%s - (%s : %s : %v : %s)", linksString, link.Attrs().Name, link.Attrs().HardwareAddr.String(), up, addrsString)
+	}
+	return linksString
+}
+
 func cmdAdd(args *skel.CmdArgs) error {
 	n, cniVersion, err := loadConf(args, args.Args)
 	if err != nil {
@@ -296,6 +311,14 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return fmt.Errorf("failed to open netns %q: %v", netns, err)
 	}
 	defer netns.Close()
+
+	previous := ""
+	_ = netns.Do(func(_ ns.NetNS) error {
+		previous = getData()
+		return nil
+	})
+
+	master := getData()
 
 	macvlanInterface, err := createMacvlan(n, args.IfName, netns)
 	if err != nil {
@@ -367,7 +390,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 			}
 
 			if err := netlink.LinkSetUp(macvlanInterfaceLink); err != nil {
-				return fmt.Errorf("failed to set %q UP: %v", args.IfName, err)
+				return fmt.Errorf("failed to set %q UP: %v - {%s} - {%s} - {%s}", args.IfName, err, previous, getData(), master)
 			}
 
 			return nil
