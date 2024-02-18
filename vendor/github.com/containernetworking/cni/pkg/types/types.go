@@ -171,6 +171,7 @@ type Route struct {
 	AdvMSS   int
 	Priority int
 	Table    int
+	Scope    int
 }
 
 func (r *Route) String() string {
@@ -189,6 +190,7 @@ func (r *Route) Copy() *Route {
 		AdvMSS:   r.AdvMSS,
 		Priority: r.Priority,
 		Table:    r.Table,
+		Scope:    r.Scope,
 	}
 }
 
@@ -245,6 +247,7 @@ type route struct {
 	AdvMSS   int    `json:"advmss,omitempty"`
 	Priority int    `json:"priority,omitempty"`
 	Table    int    `json:"table,omitempty"`
+	Scope    int    `json:"scope,omitempty"`
 }
 
 func (r *Route) UnmarshalJSON(data []byte) error {
@@ -259,6 +262,7 @@ func (r *Route) UnmarshalJSON(data []byte) error {
 	r.AdvMSS = rt.AdvMSS
 	r.Priority = rt.Priority
 	r.Table = rt.Table
+	r.Scope = rt.Scope
 
 	return nil
 }
@@ -271,6 +275,7 @@ func (r Route) MarshalJSON() ([]byte, error) {
 		AdvMSS:   r.AdvMSS,
 		Priority: r.Priority,
 		Table:    r.Table,
+		Scope:    r.Scope,
 	}
 
 	return json.Marshal(rt)

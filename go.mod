@@ -50,4 +50,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/containernetworking/cni => github.com/LionelJouin/cni v0.0.0-20240130143535-55ac1706d0ad
+replace github.com/containernetworking/cni => github.com/LionelJouin/cni v0.0.0-20240218122906-42695951b017
