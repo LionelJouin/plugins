@@ -828,9 +828,10 @@ func cmdDel(args *skel.CmdArgs) error {
 
 func main() {
 	skel.PluginMainFuncs(skel.CNIFuncs{
-		Add:   cmdAdd,
-		Check: cmdCheck,
-		Del:   cmdDel,
+		Add:    cmdAdd,
+		Check:  cmdCheck,
+		Del:    cmdDel,
+		Status: cmdStatus,
 	}, version.All, bv.BuildString("bridge"))
 }
 
@@ -1091,4 +1092,19 @@ func cmdCheck(args *skel.CmdArgs) error {
 
 func uniqueID(containerID, cniIface string) string {
 	return containerID + "-" + cniIface
+}
+
+func cmdStatus(args *skel.CmdArgs) error {
+	conf := NetConf{}
+	if err := json.Unmarshal(args.StdinData, &conf); err != nil {
+		return fmt.Errorf("failed to load netconf: %w", err)
+	}
+
+	if conf.IPAM.Type != "" {
+		if err := ipam.ExecStatus(conf.IPAM.Type, args.StdinData); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
