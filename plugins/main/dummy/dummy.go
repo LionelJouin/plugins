@@ -180,9 +180,10 @@ func cmdDel(args *skel.CmdArgs) error {
 
 func main() {
 	skel.PluginMainFuncs(skel.CNIFuncs{
-		Add:   cmdAdd,
-		Check: cmdCheck,
-		Del:   cmdDel,
+		Add:    cmdAdd,
+		Check:  cmdCheck,
+		Del:    cmdDel,
+		Status: cmdStatus,
 	}, version.All, bv.BuildString("dummy"))
 }
 
@@ -288,6 +289,19 @@ func validateCniContainerInterface(intf current.Interface) error {
 
 	if link.Attrs().Flags&net.FlagUp != net.FlagUp {
 		return fmt.Errorf("Interface %s is down", intf.Name)
+	}
+
+	return nil
+}
+
+func cmdStatus(args *skel.CmdArgs) error {
+	conf := types.NetConf{}
+	if err := json.Unmarshal(args.StdinData, &conf); err != nil {
+		return fmt.Errorf("failed to load netconf: %w", err)
+	}
+
+	if err := ipam.ExecStatus(conf.IPAM.Type, args.StdinData); err != nil {
+		return err
 	}
 
 	return nil
