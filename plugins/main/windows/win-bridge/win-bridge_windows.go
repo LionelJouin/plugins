@@ -220,6 +220,7 @@ func main() {
 		Check:  cmdCheck,
 		Del:    cmdDel,
 		Status: cmdStatus,
+		/* FIXME GC */
 	}, version.All, bv.BuildString("win-bridge"))
 }
 

@@ -195,7 +195,7 @@ func getDefaultRouteInterfaceName() (string, error) {
 	}
 
 	for _, v := range routeToDstIP {
-		if v.Dst == nil {
+		if ip.IsIPNetZero(v.Dst) {
 			l, err := netlink.LinkByIndex(v.LinkIndex)
 			if err != nil {
 				return "", err
@@ -354,6 +354,7 @@ func main() {
 		Check:  cmdCheck,
 		Del:    cmdDel,
 		Status: cmdStatus,
+		/* FIXME GC */
 	}, version.All, bv.BuildString("ipvlan"))
 }
 

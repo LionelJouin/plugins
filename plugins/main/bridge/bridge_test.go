@@ -729,7 +729,7 @@ func (tester *testerV10x) cmdAddTest(tc testCase, dataDir string) (types.Result,
 				continue
 			}
 			for _, route := range routes {
-				*found = (route.Dst == nil && route.Src == nil && route.Gw.Equal(gwIP))
+				*found = (ip.IsIPNetZero(route.Dst) && route.Src == nil && route.Gw.Equal(gwIP))
 				if *found {
 					break
 				}
@@ -814,7 +814,7 @@ func (tester *testerV10x) cmdCheckTest(tc testCase, conf *Net, _ string) {
 				continue
 			}
 			for _, route := range routes {
-				*found = (route.Dst == nil && route.Src == nil && route.Gw.Equal(gwIP))
+				*found = (ip.IsIPNetZero(route.Dst) && route.Src == nil && route.Gw.Equal(gwIP))
 				if *found {
 					break
 				}
@@ -1064,7 +1064,7 @@ func (tester *testerV04x) cmdAddTest(tc testCase, dataDir string) (types.Result,
 				continue
 			}
 			for _, route := range routes {
-				*found = (route.Dst == nil && route.Src == nil && route.Gw.Equal(gwIP))
+				*found = (ip.IsIPNetZero(route.Dst) && route.Src == nil && route.Gw.Equal(gwIP))
 				if *found {
 					break
 				}
@@ -1148,7 +1148,7 @@ func (tester *testerV04x) cmdCheckTest(tc testCase, conf *Net, _ string) {
 				continue
 			}
 			for _, route := range routes {
-				*found = (route.Dst == nil && route.Src == nil && route.Gw.Equal(gwIP))
+				*found = (ip.IsIPNetZero(route.Dst) && route.Src == nil && route.Gw.Equal(gwIP))
 				if *found {
 					break
 				}
@@ -1396,7 +1396,7 @@ func (tester *testerV03x) cmdAddTest(tc testCase, dataDir string) (types.Result,
 				continue
 			}
 			for _, route := range routes {
-				*found = (route.Dst == nil && route.Src == nil && route.Gw.Equal(gwIP))
+				*found = (ip.IsIPNetZero(route.Dst) && route.Src == nil && route.Gw.Equal(gwIP))
 				if *found {
 					break
 				}
@@ -1625,7 +1625,7 @@ func (tester *testerV01xOr02x) cmdAddTest(tc testCase, dataDir string) (types.Re
 				continue
 			}
 			for _, route := range routes {
-				*found = (route.Dst == nil && route.Src == nil && route.Gw.Equal(gwIP))
+				*found = (ip.IsIPNetZero(route.Dst) && route.Src == nil && route.Gw.Equal(gwIP))
 				if *found {
 					break
 				}

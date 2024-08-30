@@ -286,6 +286,8 @@ func main() {
 		Add:   cmdAdd,
 		Check: cmdCheck,
 		Del:   cmdDel,
+		/* FIXME GC */
+		/* FIXME Status */
 	}, version.VersionsStartingFrom("0.3.0"), bv.BuildString("bandwidth"))
 }
 

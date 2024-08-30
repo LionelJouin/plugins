@@ -41,6 +41,7 @@ type NetConf struct {
 	MTU        int    `json:"mtu"`
 	Mac        string `json:"mac,omitempty"`
 	LinkContNs bool   `json:"linkInContainer,omitempty"`
+	BcQueueLen uint32 `json:"bcqueuelen,omitempty"`
 
 	RuntimeConfig struct {
 		Mac string `json:"mac,omitempty"`
@@ -67,7 +68,7 @@ func getDefaultRouteInterfaceName() (string, error) {
 	}
 
 	for _, v := range routeToDstIP {
-		if v.Dst == nil {
+		if ip.IsIPNetZero(v.Dst) {
 			l, err := netlink.LinkByIndex(v.LinkIndex)
 			if err != nil {
 				return "", err
@@ -244,6 +245,8 @@ func createMacvlan(conf *NetConf, ifName string, netns ns.NetNS) (*current.Inter
 		LinkAttrs: linkAttrs,
 		Mode:      mode,
 	}
+
+	mv.BCQueueLen = conf.BcQueueLen
 
 	if conf.LinkContNs {
 		err = netns.Do(func(_ ns.NetNS) error {
@@ -431,6 +434,7 @@ func main() {
 		Check:  cmdCheck,
 		Del:    cmdDel,
 		Status: cmdStatus,
+		/* FIXME GC */
 	}, version.All, bv.BuildString("macvlan"))
 }
 

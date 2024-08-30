@@ -138,6 +138,8 @@ func main() {
 		Add:   cmdAdd,
 		Check: cmdCheck,
 		Del:   cmdDel,
+		/* FIXME GC */
+		/* FIXME Status */
 	}, version.All, bv.BuildString("portmap"))
 }
 
